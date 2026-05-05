@@ -28,7 +28,7 @@ st.set_page_config(
 )
 
 
-@st.cache_data(ttl=TTL_FUNDAMENTALS_S, show_spinner="Fetching VN30 fundamentals from vnstock...")
+@st.cache_data(ttl=TTL_FUNDAMENTALS_S, show_spinner="Fetching VN30 fundamentals from yfinance...")
 def _cached_fetch() -> pd.DataFrame:
     return fetch_vn30_dataset()
 
@@ -58,8 +58,8 @@ def _header_banner() -> None:
     if last:
         st.caption(f"Last data refresh: {last.strftime('%Y-%m-%d %H:%M UTC')}")
     st.info(
-        "Vietnamese financials sourced from **vnstock** (VCI primary, TCBS fallback). "
-        "Global peer data from **yfinance** with known coverage gaps for ASEAN names. "
+        "Vietnamese financials sourced from **yfinance** (using the `.VN` ticker suffix). "
+        "Global peer data also from **yfinance** with known coverage gaps for ASEAN names. "
         "Use as a research tool, not as trading recommendations.",
         icon="ℹ️",
     )

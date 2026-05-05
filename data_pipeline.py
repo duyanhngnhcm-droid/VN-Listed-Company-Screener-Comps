@@ -378,13 +378,8 @@ def _row_from_payload(ticker: str, name: str, free_float: float,
     row["loan_growth_3y"] = M.cagr_3y(loans) if len(loans) >= 4 else np.nan
     row["nim"] = M.nim(nii, total_assets) if nii and total_assets else np.nan
     row["cir"] = M.cost_to_income(operating_expenses, operating_revenue)
-    row["npl"] = np.nan  # not available via yfinance
-    if scorecard == "banks":
-        # Surface NPL gap once per bank in diagnostics so the message
-        # appears in the sidebar exactly as documented.
-        _DIAGNOSTIC.validation_warnings.append(
-            f"{ticker}: NPL not available via yfinance; bank asset-quality pillar weight redistributed"
-        )
+    row["npl"] = np.nan  # not available via yfinance — surfaced once globally
+                         # in fetch_vn30_dataset() rather than 14x per-bank.
 
     # Dividend yield from `info.dividendYield` (already a fraction).
     dy = info.get("dividendYield")
@@ -480,6 +475,13 @@ def fetch_vn30_dataset(force_refresh: bool = False) -> pd.DataFrame:
                     "is_": None, "bs_": None, "cf_": None, "info": {},
                     "yfinance_empty": True, "_error": str(e),
                 }
+
+    # NPL is not exposed by yfinance for any ASEAN bank; surface this once
+    # globally so the diagnostic panel doesn't repeat the message 14 times.
+    _DIAGNOSTIC.validation_warnings.append(
+        "NPL ratio is not available via yfinance for any VN bank; "
+        "bank asset-quality pillar weight is redistributed to ROE/NIM/CIR."
+    )
 
     # Step 2: assemble rows in the canonical VN30 order
     rows: List[Dict[str, Any]] = []

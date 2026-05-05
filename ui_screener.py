@@ -122,7 +122,7 @@ def _style_metric_columns(styler, scored: pd.DataFrame, scorecard: str):
 def render(df: pd.DataFrame, on_refresh) -> None:
     st.markdown("### VN30 Screener")
     if df is None or df.empty:
-        st.warning("No data loaded yet. Click **Refresh data** to fetch from vnstock.")
+        st.warning("No data loaded yet. Click **Refresh data** to fetch from yfinance.")
         if st.button("Refresh data", type="primary"):
             on_refresh()
         return
@@ -149,7 +149,7 @@ def render(df: pd.DataFrame, on_refresh) -> None:
         if st.button("🔄 Refresh data", use_container_width=True):
             on_refresh()
     with c4:
-        st.caption("Data source: vnstock (VCI primary, TCBS fallback). Cache 24h.")
+        st.caption("Data source: yfinance (`.VN` tickers). Cache 24h.")
 
     # ---- Sidebar: weight panel + filters + diagnostics ----
     weights, can_score = render_weight_panel(scorecard)
@@ -166,15 +166,21 @@ def render(df: pd.DataFrame, on_refresh) -> None:
         scoped = df[df["scorecard"] == scorecard]
         sub_sectors = sorted(scoped["sub_sector"].dropna().unique().tolist())
         sel_subs = st.multiselect("Sub-sector", sub_sectors, default=sub_sectors, key=f"subs:{scorecard}")
-        if scoped["market_cap_vnd_b"].dropna().empty:
-            mc_min, mc_max = 0.0, 1e6
+        # When all fetches fail, market cap is all NaN. Use safe fallbacks
+        # to avoid NaN reaching st.slider (which raises on NaN bounds).
+        mc_series = scoped["market_cap_vnd_b"].dropna()
+        if mc_series.empty:
+            mc_min, mc_max = 0.0, 1_000_000.0
         else:
-            mc_min = float(scoped["market_cap_vnd_b"].min(skipna=True) or 0)
-            mc_max = float(scoped["market_cap_vnd_b"].max(skipna=True) or 1)
+            mc_min = float(mc_series.min())
+            mc_max = float(mc_series.max())
+            if not np.isfinite(mc_max) or mc_max <= 0:
+                mc_max = 1_000_000.0
+        slider_max = max(mc_max, 1.0)
         mc_range = st.slider(
             "Market cap (VND B)",
-            min_value=0.0, max_value=max(mc_max, 1.0),
-            value=(0.0, max(mc_max, 1.0)),
+            min_value=0.0, max_value=slider_max,
+            value=(0.0, slider_max),
             key=f"mcap:{scorecard}",
         )
         hide_low = st.checkbox("Hide rows with >2 N/A metrics", value=False, key=f"hidena:{scorecard}")
@@ -291,7 +297,9 @@ def _methodology_md(scorecard: str, weights: Dict[str, float], method: str) -> s
         f"**Real estate developers** (VHM, VIC, VRE) are flagged for project-cycle volatility "
         f"that distorts EBITDA margin and FCF yield YoY.\n\n"
         f"#### Data sources\n"
-        f"Vietnamese fundamentals: `vnstock` (VCI primary, TCBS fallback), 24h cache. "
+        f"Vietnamese fundamentals: `yfinance` via the `.VN` ticker suffix, 24h cache. "
         f"Global peers: `yfinance` with USD normalization (24h cache). "
-        f"FX rates: yfinance pairs with hard-coded fallback in `config.py`."
+        f"FX rates: yfinance pairs with hard-coded fallback in `config.py`. "
+        f"NPL is not exposed by yfinance for ASEAN banks; the bank asset-quality "
+        f"pillar weight is redistributed to ROE/NIM/CIR when NPL is missing."
     )

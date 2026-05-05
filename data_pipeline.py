@@ -318,8 +318,24 @@ def _row_from_payload(ticker: str, name: str, free_float: float,
     ])
     total_assets = _series_recent_first(bs_df, ["Total Assets"])
     total_debt = _series_recent_first(bs_df, [
-        "Total Debt", "Net Debt",
+        "Total Debt",
     ])
+    if not total_debt:
+        # If Total Debt is missing, check if Net Debt + Cash is available.
+        # This is safer than using Net Debt alone, which would double-subtract
+        # cash when calculating invested capital in metrics.py.
+        net_debt = _series_recent_first(bs_df, ["Net Debt"])
+        cash_for_debt = _series_recent_first(bs_df, [
+            "Cash And Cash Equivalents",
+            "Cash Cash Equivalents And Short Term Investments",
+            "Cash Financial",
+        ])
+        if net_debt and cash_for_debt:
+            total_debt = [
+                (nd + c) if nd is not None and c is not None else None
+                for nd, c in zip(net_debt, cash_for_debt)
+            ]
+
     cash = _series_recent_first(bs_df, [
         "Cash And Cash Equivalents",
         "Cash Cash Equivalents And Short Term Investments",

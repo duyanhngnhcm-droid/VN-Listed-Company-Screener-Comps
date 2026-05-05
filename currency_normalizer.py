@@ -41,17 +41,21 @@ def _normalize_currency_code(code: Optional[str]) -> str:
     need their case (GBp, ZAc, ILA) preserved."""
     if not code:
         return "USD"
-    if code in MINOR_UNIT_CURRENCIES:
-        return code
-    return code.strip().upper()
+    stripped = code.strip()
+    # Case-insensitive check for minor units
+    for mu in MINOR_UNIT_CURRENCIES:
+        if stripped.lower() == mu.lower():
+            return mu
+    return stripped.upper()
 
 
 def resolve_minor_unit(code: str) -> Tuple[str, float]:
     """If `code` is a minor unit (GBp etc.), return (major_code, divisor).
     Otherwise return (code, 1.0)."""
-    if code in MINOR_UNIT_CURRENCIES:
-        major, divisor = MINOR_UNIT_CURRENCIES[code]
-        return major, divisor
+    # Case-insensitive check for minor units
+    for mu, (major, divisor) in MINOR_UNIT_CURRENCIES.items():
+        if code.lower() == mu.lower():
+            return major, divisor
     return code, 1.0
 
 

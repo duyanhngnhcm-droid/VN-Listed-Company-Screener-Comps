@@ -74,10 +74,13 @@ def roe_avg(net_income: Sequence[Optional[float]],
     ni = _first(net_income)
     if ni is None:
         return np.nan
-    if not equity or len(equity) < 2:
-        eq_avg = _first(equity)
+
+    # Robust average equity: use two years if both available, else just one.
+    if len(equity) >= 2 and equity[0] is not None and equity[1] is not None:
+        eq_avg = (equity[0] + equity[1]) / 2.0
     else:
-        eq_avg = _avg2(equity[0], equity[1])
+        eq_avg = _first(equity)
+
     if eq_avg is None or eq_avg <= 0:
         return np.nan
     return ni / eq_avg
@@ -94,7 +97,7 @@ def roic(op_income: Sequence[Optional[float]],
     Effective tax rate ≈ tax_expense / (op_income) clipped to [0, 0.4].
     """
     op = _first(op_income)
-    if op is None or op <= 0:
+    if op is None:
         return np.nan
     tax = _first(tax_expense)
     if tax is None or op == 0:

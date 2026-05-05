@@ -214,8 +214,8 @@ def _tier1_operation(target: Dict[str, Any],
         return survivors
 
     log_target = math.log(max(target_mc, 1e-6))
-    pool_log = [math.log(c["market_cap_usd_b"]) for c in survivors
-                if c.get("market_cap_usd_b") and c["market_cap_usd_b"] > 0]
+    pool_log = [math.log(max(c["market_cap_usd_b"], 1e-6)) for c in survivors
+                if c.get("market_cap_usd_b") is not None and c["market_cap_usd_b"] > 0]
     if len(pool_log) < 3:
         log_.add("Size: insufficient pool size data; size filter skipped")
         return survivors
